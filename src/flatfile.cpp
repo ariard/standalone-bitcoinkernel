@@ -30,7 +30,7 @@ fs::path FlatFileSeq::FileName(const FlatFilePos& pos) const
     return m_dir / fs::u8path(strprintf("%s%05u.dat", m_prefix, pos.nFile));
 }
 
-FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only) const
+FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only)
 {
     if (pos.IsNull()) {
         return nullptr;
@@ -52,7 +52,7 @@ FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only) const
     return file;
 }
 
-size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_of_space) const
+size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_of_space)
 {
     out_of_space = false;
 
@@ -78,22 +78,19 @@ size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_
     return 0;
 }
 
-bool FlatFileSeq::Flush(const FlatFilePos& pos, bool finalize) const
+bool FlatFileSeq::Flush(const FlatFilePos& pos, bool finalize)
 {
     FILE* file = Open(FlatFilePos(pos.nFile, 0)); // Avoid fseek to nPos
     if (!file) {
-        LogError("%s: failed to open file %d\n", __func__, pos.nFile);
-        return false;
+        return error("%s: failed to open file %d", __func__, pos.nFile);
     }
     if (finalize && !TruncateFile(file, pos.nPos)) {
         fclose(file);
-        LogError("%s: failed to truncate file %d\n", __func__, pos.nFile);
-        return false;
+        return error("%s: failed to truncate file %d", __func__, pos.nFile);
     }
     if (!FileCommit(file)) {
         fclose(file);
-        LogError("%s: failed to commit file %d\n", __func__, pos.nFile);
-        return false;
+        return error("%s: failed to commit file %d", __func__, pos.nFile);
     }
     DirectoryCommit(m_dir);
 

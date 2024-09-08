@@ -18,29 +18,37 @@ std::string base_blob<BITS>::GetHex() const
 }
 
 template <unsigned int BITS>
-void base_blob<BITS>::SetHexDeprecated(const std::string_view str)
+void base_blob<BITS>::SetHex(const char* psz)
 {
     std::fill(m_data.begin(), m_data.end(), 0);
 
-    const auto trimmed = util::RemovePrefixView(util::TrimStringView(str), "0x");
+    // skip leading spaces
+    while (IsSpace(*psz))
+        psz++;
 
-    // Note: if we are passed a greater number of digits than would fit as bytes
-    // in m_data, we will be discarding the leftmost ones.
-    // str="12bc" in a WIDTH=1 m_data => m_data[] == "\0xbc", not "0x12".
+    // skip 0x
+    if (psz[0] == '0' && ToLower(psz[1]) == 'x')
+        psz += 2;
+
+    // hex string to uint
     size_t digits = 0;
-    for (const char c : trimmed) {
-        if (::HexDigit(c) == -1) break;
-        ++digits;
-    }
+    while (::HexDigit(psz[digits]) != -1)
+        digits++;
     unsigned char* p1 = m_data.data();
     unsigned char* pend = p1 + WIDTH;
     while (digits > 0 && p1 < pend) {
-        *p1 = ::HexDigit(trimmed[--digits]);
+        *p1 = ::HexDigit(psz[--digits]);
         if (digits > 0) {
-            *p1 |= ((unsigned char)::HexDigit(trimmed[--digits]) << 4);
+            *p1 |= ((unsigned char)::HexDigit(psz[--digits]) << 4);
             p1++;
         }
     }
+}
+
+template <unsigned int BITS>
+void base_blob<BITS>::SetHex(const std::string& str)
+{
+    SetHex(str.c_str());
 }
 
 template <unsigned int BITS>
@@ -52,12 +60,14 @@ std::string base_blob<BITS>::ToString() const
 // Explicit instantiations for base_blob<160>
 template std::string base_blob<160>::GetHex() const;
 template std::string base_blob<160>::ToString() const;
-template void base_blob<160>::SetHexDeprecated(std::string_view);
+template void base_blob<160>::SetHex(const char*);
+template void base_blob<160>::SetHex(const std::string&);
 
 // Explicit instantiations for base_blob<256>
 template std::string base_blob<256>::GetHex() const;
 template std::string base_blob<256>::ToString() const;
-template void base_blob<256>::SetHexDeprecated(std::string_view);
+template void base_blob<256>::SetHex(const char*);
+template void base_blob<256>::SetHex(const std::string&);
 
 const uint256 uint256::ZERO(0);
 const uint256 uint256::ONE(1);

@@ -2,25 +2,58 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <config/bitcoin-config.h> // IWYU pragma: keep
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
 
 #include <clientversion.h>
-#include <util/string.h>
 #include <util/translation.h>
 
 #include <tinyformat.h>
 
+#include <sstream>
 #include <string>
 #include <vector>
 
-using util::Join;
-
 /**
  * Name of client reported in the 'version' message. Report the same name
- * for both bitcoind and bitcoin-qt, to make it harder for attackers to
+ * for both XXX and XXX, to make it harder for attackers to
  * target servers or GUI users specifically.
+ *
+ * See commit c170d03e0 - Wed Feb 22 10:36:19 2012 in the historical git tree.
+ *
+ * ```
+ * commit c170d03e036553313bb9eb2e306146d6cc0f4ac6
+ * Author: Luke Dashjr <luke-jr+git@utopios.org>
+ * Date:   Wed Feb 22 10:36:19 2012 -0500
+ *
+ *     Bugfix: Instead of reporting "bitcoin-qt" for both bitcoind and Bitcoin-Qt, report "Satoshi" which is at least correct
+ *
+ *     diff --git a/src/main.cpp b/src/main.cpp
+ *     index b73037fb6a..812386a801 100644
+ *     --- a/src/main.cpp
+ *     +++ b/src/main.cpp
+ *     @@ -21,7 +21,7 @@ using namespace boost;
+ *      // Name of client reported in the 'version' message. Report the same name
+ *       // for both bitcoind and bitcoin-qt, to make it harder for attackers to
+ *        // target servers or GUI users specifically.
+ *        -const std::string CLIENT_NAME("bitcoin-qt");
+ *        +const std::string CLIENT_NAME("Satoshi");
+ *
+ *          CCriticalSection cs_setpwalletRegistered;
+ *           set<CWallet*> setpwalletRegistered;
+ * ```
+ *
+ * The CLIENT_NAME currently represents both the full-node software used
+ * and the underlying consensus engine. As libbitcoinkernel becomes a
+ * library more used in the ecosystem, it could be worthy to amend the
+ * `version` message, to dissociate the exact consensus engine used, from
+ * the full node software itself, and its set of supported service bits or
+ * p2p protocol versions. We currently dub this libbitcoinkernel utility
+ * as "Satoshi-XXX", waiting more ecosystem clarity on the usage of the
+ * CLIENT_NAME.
  */
-const std::string CLIENT_NAME("Satoshi");
+const std::string CLIENT_NAME("Satoshi-XXX");
 
 
 #ifdef HAVE_BUILD_INFO
@@ -66,9 +99,19 @@ std::string FormatFullVersion()
  */
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments)
 {
-    std::string comments_str;
-    if (!comments.empty()) comments_str = strprintf("(%s)", Join(comments, "; "));
-    return strprintf("/%s:%s%s/", name, FormatVersion(nClientVersion), comments_str);
+    std::ostringstream ss;
+    ss << "/";
+    ss << name << ":" << FormatVersion(nClientVersion);
+    if (!comments.empty())
+    {
+        std::vector<std::string>::const_iterator it(comments.begin());
+        ss << "(" << *it;
+        for(++it; it != comments.end(); ++it)
+            ss << "; " << *it;
+        ss << ")";
+    }
+    ss << "/";
+    return ss.str();
 }
 
 std::string CopyrightHolders(const std::string& strPrefix)
